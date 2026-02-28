@@ -53,7 +53,6 @@
       font-size: 12px;
       font-weight: 700;
       color: #888;
-      text-transform: uppercase;
       letter-spacing: .5px;
       margin-bottom: 8px;
       padding-left: 4px;
@@ -67,27 +66,31 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      cursor: pointer;
-      transition: box-shadow .2s;
     }
-    .card:active { box-shadow: 0 3px 10px rgba(0,0,0,.12); }
     .date-badge {
-      min-width: 48px;
+      min-width: 52px;
       text-align: center;
       background: #e8f0fe;
       border-radius: 8px;
       padding: 6px 4px;
     }
-    .date-badge .day { font-size: 20px; font-weight: 700; color: #1a73e8; line-height: 1; }
-    .date-badge .dow { font-size: 10px; color: #5f6368; margin-top: 2px; }
+    .date-badge .day { font-size: 22px; font-weight: 700; color: #1a73e8; line-height: 1; }
+    .date-badge .dow { font-size: 11px; color: #5f6368; margin-top: 3px; }
     .card-body { flex: 1; min-width: 0; }
-    .corp-name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .corp-name {
+      font-weight: 700;
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .corp-meta { font-size: 12px; color: #888; margin-top: 3px; }
     .badge {
       font-size: 11px;
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 12px;
       white-space: nowrap;
+      font-weight: 600;
     }
     .badge-confirmed { background: #e6f4ea; color: #1e7e34; }
     .badge-expected  { background: #fff8e1; color: #f57f17; }
@@ -97,11 +100,15 @@
       color: #aaa;
       font-size: 14px;
     }
-    .updated {
+    .footer {
       text-align: center;
-      padding: 16px;
+      padding: 20px;
       font-size: 11px;
       color: #bbb;
+    }
+    @media (max-width: 480px) {
+      .week-group { margin: 8px 10px; }
+      .card { padding: 12px; gap: 10px; }
     }
   </style>
 </head>
@@ -113,65 +120,60 @@
 </header>
 
 <div class="filters">
-  <button class="active" onclick="filter('all', this)">전체</button>
-  <button onclick="filter('confirmed', this)">확정</button>
-  <button onclick="filter('expected', this)">예상</button>
-  <button onclick="filter('KOSPI', this)">KOSPI</button>
-  <button onclick="filter('KOSDAQ', this)">KOSDAQ</button>
+  <button class="active" onclick="setFilter('all', this)">전체</button>
+  <button onclick="setFilter('confirmed', this)">확정</button>
+  <button onclick="setFilter('expected', this)">예상</button>
+  <button onclick="setFilter('KOSPI', this)">KOSPI</button>
+  <button onclick="setFilter('KOSDAQ', this)">KOSDAQ</button>
 </div>
 
-<div id="calendar-root"></div>
-<div class="updated" id="footer-updated"></div>
+<div id="root"></div>
+<div class="footer" id="footer"></div>
 
 <script>
-// ── 데이터 (자동 주입) ──────────────────────────────────────
-const CALENDAR_DATA = __CALENDAR_DATA__;
-const UPDATED_AT    = "__UPDATED_AT__";
+const DATA = [{"stock_code": "192400", "corp_name": "쿠쿠홀딩스", "market": "Y", "announce_dt": "20260223", "rcept_no": "20260223800820", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "088350", "corp_name": "한화생명", "market": "Y", "announce_dt": "20260223", "rcept_no": "20260223800598", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "0010V0", "corp_name": "제이피아이헬스케어", "market": "K", "announce_dt": "20260223", "rcept_no": "20260223900382", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "001450", "corp_name": "현대해상", "market": "Y", "announce_dt": "20260223", "rcept_no": "20260223800323", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "000370", "corp_name": "한화손해보험", "market": "Y", "announce_dt": "20260223", "rcept_no": "20260223800129", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "014790", "corp_name": "HL D&I", "market": "Y", "announce_dt": "20260223", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "009290", "corp_name": "광동제약", "market": "Y", "announce_dt": "20260223", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "222040", "corp_name": "코스맥스엔비티", "market": "K", "announce_dt": "20260223", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "086670", "corp_name": "비엠티", "market": "K", "announce_dt": "20260223", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "151860", "corp_name": "KG에코솔루션", "market": "K", "announce_dt": "20260224", "rcept_no": "20260224900936", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "011210", "corp_name": "현대위아", "market": "Y", "announce_dt": "20260224", "rcept_no": "20260224801081", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "417970", "corp_name": "모델솔루션", "market": "K", "announce_dt": "20260224", "rcept_no": "20260224900993", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "329180", "corp_name": "HD현대중공업", "market": "Y", "announce_dt": "20260224", "rcept_no": "20260224800861", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "009540", "corp_name": "HD한국조선해양", "market": "Y", "announce_dt": "20260224", "rcept_no": "20260224800852", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "352820", "corp_name": "하이브", "market": "Y", "announce_dt": "20260224", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "068270", "corp_name": "셀트리온", "market": "Y", "announce_dt": "20260224", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "036010", "corp_name": "아비코전자", "market": "K", "announce_dt": "20260224", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "004000", "corp_name": "롯데정밀화학", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225801727", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "000880", "corp_name": "한화", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225801674", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "450080", "corp_name": "에코프로머티", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225801569", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "042000", "corp_name": "카페24", "market": "K", "announce_dt": "20260225", "rcept_no": "20260225901551", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "388050", "corp_name": "지투파워", "market": "K", "announce_dt": "20260225", "rcept_no": "20260225901419", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "031210", "corp_name": "서울보증보험", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225801467", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "240810", "corp_name": "원익IPS", "market": "K", "announce_dt": "20260225", "rcept_no": "20260225901290", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "215200", "corp_name": "메가스터디교육", "market": "K", "announce_dt": "20260225", "rcept_no": "20260225900994", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "377740", "corp_name": "바이오노트", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225801183", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "096530", "corp_name": "씨젠", "market": "K", "announce_dt": "20260225", "rcept_no": "20260225900818", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "403550", "corp_name": "쏘카", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225800509", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "161890", "corp_name": "한국콜마", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225800390", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "023160", "corp_name": "태광", "market": "K", "announce_dt": "20260225", "rcept_no": "20260225900306", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "012860", "corp_name": "모베이스전자", "market": "K", "announce_dt": "20260225", "rcept_no": "20260225900238", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "271560", "corp_name": "오리온", "market": "Y", "announce_dt": "20260225", "rcept_no": "20260225800112", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "024720", "corp_name": "콜마홀딩스", "market": "Y", "announce_dt": "20260225", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "001390", "corp_name": "KG케미칼", "market": "Y", "announce_dt": "20260226", "rcept_no": "20260226801791", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "091810", "corp_name": "티웨이항공", "market": "Y", "announce_dt": "20260226", "rcept_no": "20260226801669", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "284740", "corp_name": "쿠쿠홈시스", "market": "Y", "announce_dt": "20260226", "rcept_no": "20260226801582", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "036460", "corp_name": "한국가스공사", "market": "Y", "announce_dt": "20260226", "rcept_no": "20260226800912", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "015760", "corp_name": "한국전력공사", "market": "Y", "announce_dt": "20260226", "rcept_no": "20260226800817", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "002960", "corp_name": "한국쉘석유", "market": "Y", "announce_dt": "20260226", "rcept_no": "20260226800794", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "104830", "corp_name": "원익머트리얼즈", "market": "K", "announce_dt": "20260226", "rcept_no": "20260226900649", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "257720", "corp_name": "실리콘투", "market": "K", "announce_dt": "20260226", "rcept_no": "20260226900511", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "041830", "corp_name": "인바디", "market": "K", "announce_dt": "20260226", "rcept_no": "20260226900579", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "367000", "corp_name": "플래티어", "market": "K", "announce_dt": "20260226", "rcept_no": "20260226900450", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "005290", "corp_name": "동진쎄미켐", "market": "K", "announce_dt": "20260226", "rcept_no": "20260226900456", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "161390", "corp_name": "한국타이어앤테크놀로지", "market": "Y", "announce_dt": "20260226", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "065450", "corp_name": "빅텍", "market": "K", "announce_dt": "20260226", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "074600", "corp_name": "원익QnC", "market": "K", "announce_dt": "20260226", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "013360", "corp_name": "일성건설", "market": "Y", "announce_dt": "20260227", "rcept_no": "20260227802130", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "214420", "corp_name": "토니모리", "market": "Y", "announce_dt": "20260227", "rcept_no": "20260227801320", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "041510", "corp_name": "에스엠", "market": "K", "announce_dt": "20260227", "rcept_no": "20260227901152", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "120110", "corp_name": "코오롱인더", "market": "Y", "announce_dt": "20260227", "rcept_no": "20260227801186", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "950190", "corp_name": "고스트스튜디오", "market": "K", "announce_dt": "20260227", "rcept_no": "20260227900468", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "201490", "corp_name": "미투온", "market": "K", "announce_dt": "20260227", "rcept_no": "20260227900386", "confirmed": 1, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "298000", "corp_name": "효성화학", "market": "Y", "announce_dt": "20260227", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "018880", "corp_name": "한온시스템", "market": "Y", "announce_dt": "20260227", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "145720", "corp_name": "덴티움", "market": "Y", "announce_dt": "20260227", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}, {"stock_code": "030210", "corp_name": "다올투자증권", "market": "Y", "announce_dt": "20260227", "rcept_no": "", "confirmed": 0, "created_at": "2026-02-28T15:08:13"}];
+const UPDATED = "2026-02-28 15:08 KST";
+const DOW = ['일','월','화','수','목','금','토'];
 
-const DOW_KR = ['일','월','화','수','목','금','토'];
-
-function formatDate(d) {
-  // d: YYYYMMDD
+function parseDt(d) {
   const y = d.slice(0,4), m = d.slice(4,6), day = d.slice(6,8);
   const dt = new Date(+y, +m-1, +day);
-  return { y, m, day, dow: DOW_KR[dt.getDay()], full: `${m}/${day}` };
+  return { m, day, dow: DOW[dt.getDay()], label: `${y}년 ${m}월 ${Math.ceil(+day/7)}주` };
 }
 
-function groupByWeek(data) {
-  const weeks = {};
-  data.forEach(row => {
-    const dt = formatDate(row.announce_dt);
-    const weekKey = `${dt.y}년 ${dt.m}월 ${Math.ceil(+dt.day/7)}주`;
-    if (!weeks[weekKey]) weeks[weekKey] = [];
-    weeks[weekKey].push({ ...row, _dt: dt });
-  });
-  return weeks;
-}
+let _filter = 'all';
 
-let _currentFilter = 'all';
-
-function filter(type, btn) {
-  _currentFilter = type;
+function setFilter(type, btn) {
+  _filter = type;
   document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   render();
 }
 
 function render() {
-  const root = document.getElementById('calendar-root');
-  let data = CALENDAR_DATA;
+  const root = document.getElementById('root');
+  let data = DATA;
 
-  if (_currentFilter === 'confirmed') data = data.filter(r => r.confirmed === 1);
-  else if (_currentFilter === 'expected') data = data.filter(r => r.confirmed === 0);
-  else if (_currentFilter === 'KOSPI')  data = data.filter(r => r.market === 'Y');
-  else if (_currentFilter === 'KOSDAQ') data = data.filter(r => r.market === 'K');
+  if (_filter === 'confirmed') data = data.filter(r => r.confirmed === 1);
+  else if (_filter === 'expected') data = data.filter(r => r.confirmed === 0);
+  else if (_filter === 'KOSPI')  data = data.filter(r => r.market === 'Y');
+  else if (_filter === 'KOSDAQ') data = data.filter(r => r.market === 'K');
 
   if (!data.length) {
     root.innerHTML = '<div class="empty">해당하는 실적발표 일정이 없습니다.</div>';
     return;
   }
 
-  const weeks = groupByWeek(data);
+  // 주별 그룹
+  const weeks = {};
+  data.forEach(r => {
+    const dt = parseDt(r.announce_dt);
+    if (!weeks[dt.label]) weeks[dt.label] = [];
+    weeks[dt.label].push({ ...r, _dt: dt });
+  });
+
+  const mktLabel = { Y: 'KOSPI', K: 'KOSDAQ', N: 'KONEX', E: '기타' };
+
   root.innerHTML = Object.entries(weeks).map(([week, rows]) => `
     <div class="week-group">
       <div class="week-label">${week}</div>
@@ -183,7 +185,7 @@ function render() {
           </div>
           <div class="card-body">
             <div class="corp-name">${r.corp_name}</div>
-            <div class="corp-meta">${r.stock_code} · ${r.market === 'Y' ? 'KOSPI' : r.market === 'K' ? 'KOSDAQ' : r.market}</div>
+            <div class="corp-meta">${r.stock_code} · ${mktLabel[r.market] || r.market}</div>
           </div>
           <span class="badge ${r.confirmed ? 'badge-confirmed' : 'badge-expected'}">
             ${r.confirmed ? '확정' : '예상'}
@@ -194,8 +196,8 @@ function render() {
   `).join('');
 }
 
-document.getElementById('updated-label').textContent = UPDATED_AT ? `업데이트: ${UPDATED_AT}` : '';
-document.getElementById('footer-updated').textContent = UPDATED_AT ? `마지막 업데이트: ${UPDATED_AT}` : '';
+document.getElementById('updated-label').textContent = UPDATED ? `업데이트: ${UPDATED}` : '';
+document.getElementById('footer').textContent = UPDATED ? `마지막 업데이트: ${UPDATED}` : '';
 render();
 </script>
 </body>
