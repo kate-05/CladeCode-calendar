@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>실적발표 캘린더</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      font-size: 15px;
+    }
+    header {
+      background: #1a73e8;
+      color: #fff;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header span { font-size: 12px; opacity: .8; }
+    .filters {
+      padding: 12px 16px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filters button {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #f5f5f5;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filters button.active {
+      background: #1a73e8;
+      color: #fff;
+      border-color: #1a73e8;
+    }
+    .week-group { margin: 12px 16px; }
+    .week-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.07);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: box-shadow .2s;
+    }
+    .card:active { box-shadow: 0 3px 10px rgba(0,0,0,.12); }
+    .date-badge {
+      min-width: 48px;
+      text-align: center;
+      background: #e8f0fe;
+      border-radius: 8px;
+      padding: 6px 4px;
+    }
+    .date-badge .day { font-size: 20px; font-weight: 700; color: #1a73e8; line-height: 1; }
+    .date-badge .dow { font-size: 10px; color: #5f6368; margin-top: 2px; }
+    .card-body { flex: 1; min-width: 0; }
+    .corp-name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .corp-meta { font-size: 12px; color: #888; margin-top: 3px; }
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+    .badge-confirmed { background: #e6f4ea; color: #1e7e34; }
+    .badge-expected  { background: #fff8e1; color: #f57f17; }
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #aaa;
+      font-size: 14px;
+    }
+    .updated {
+      text-align: center;
+      padding: 16px;
+      font-size: 11px;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📅 실적발표 캘린더</h1>
+  <span id="updated-label"></span>
+</header>
+
+<div class="filters">
+  <button class="active" onclick="filter('all', this)">전체</button>
+  <button onclick="filter('confirmed', this)">확정</button>
+  <button onclick="filter('expected', this)">예상</button>
+  <button onclick="filter('KOSPI', this)">KOSPI</button>
+  <button onclick="filter('KOSDAQ', this)">KOSDAQ</button>
+</div>
+
+<div id="calendar-root"></div>
+<div class="updated" id="footer-updated"></div>
+
+<script>
+// ── 데이터 (자동 주입) ──────────────────────────────────────
+const CALENDAR_DATA = __CALENDAR_DATA__;
+const UPDATED_AT    = "__UPDATED_AT__";
+
+const DOW_KR = ['일','월','화','수','목','금','토'];
+
+function formatDate(d) {
+  // d: YYYYMMDD
+  const y = d.slice(0,4), m = d.slice(4,6), day = d.slice(6,8);
+  const dt = new Date(+y, +m-1, +day);
+  return { y, m, day, dow: DOW_KR[dt.getDay()], full: `${m}/${day}` };
+}
+
+function groupByWeek(data) {
+  const weeks = {};
+  data.forEach(row => {
+    const dt = formatDate(row.announce_dt);
+    const weekKey = `${dt.y}년 ${dt.m}월 ${Math.ceil(+dt.day/7)}주`;
+    if (!weeks[weekKey]) weeks[weekKey] = [];
+    weeks[weekKey].push({ ...row, _dt: dt });
+  });
+  return weeks;
+}
+
+let _currentFilter = 'all';
+
+function filter(type, btn) {
+  _currentFilter = type;
+  document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function render() {
+  const root = document.getElementById('calendar-root');
+  let data = CALENDAR_DATA;
+
+  if (_currentFilter === 'confirmed') data = data.filter(r => r.confirmed === 1);
+  else if (_currentFilter === 'expected') data = data.filter(r => r.confirmed === 0);
+  else if (_currentFilter === 'KOSPI')  data = data.filter(r => r.market === 'Y');
+  else if (_currentFilter === 'KOSDAQ') data = data.filter(r => r.market === 'K');
+
+  if (!data.length) {
+    root.innerHTML = '<div class="empty">해당하는 실적발표 일정이 없습니다.</div>';
+    return;
+  }
+
+  const weeks = groupByWeek(data);
+  root.innerHTML = Object.entries(weeks).map(([week, rows]) => `
+    <div class="week-group">
+      <div class="week-label">${week}</div>
+      ${rows.map(r => `
+        <div class="card">
+          <div class="date-badge">
+            <div class="day">${r._dt.day}</div>
+            <div class="dow">${r._dt.m}/${r._dt.day} ${r._dt.dow}</div>
+          </div>
+          <div class="card-body">
+            <div class="corp-name">${r.corp_name}</div>
+            <div class="corp-meta">${r.stock_code} · ${r.market === 'Y' ? 'KOSPI' : r.market === 'K' ? 'KOSDAQ' : r.market}</div>
+          </div>
+          <span class="badge ${r.confirmed ? 'badge-confirmed' : 'badge-expected'}">
+            ${r.confirmed ? '확정' : '예상'}
+          </span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+document.getElementById('updated-label').textContent = UPDATED_AT ? `업데이트: ${UPDATED_AT}` : '';
+document.getElementById('footer-updated').textContent = UPDATED_AT ? `마지막 업데이트: ${UPDATED_AT}` : '';
+render();
+</script>
+</body>
+</html>
